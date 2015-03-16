@@ -18,6 +18,6 @@
         </constructor-arg>
     </bean>
 
-    <bean id="objectRepository" class="ph.hatch.ddd.oe.ObjectRepository"/>
+    <bean id="objectRepository" class="ph.hatch.ddd.oe.impl.HibernateObjectRepository"/>
 
 </beans>
