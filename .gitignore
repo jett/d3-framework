@@ -2,3 +2,6 @@
 *.iml
 target/*
 *.log
+*.odb
+db/*.odb
+**/target/*

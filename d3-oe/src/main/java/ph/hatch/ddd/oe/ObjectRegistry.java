@@ -62,7 +62,7 @@ public class ObjectRegistry {
             // get identity fields
 //            try {
 
-                // System.out.println("registering " + entity.getCanonicalName());
+                 System.out.println("registering " + entity.getCanonicalName());
 
                 Set<Field> fields=null;
 
@@ -71,12 +71,16 @@ public class ObjectRegistry {
                     fields = ReflectionUtils.getFields(entity, withAnnotation(DomainEntityIdentity.class));
 
                     // TODO : experimental fix
-//                    // added to also store entity identity lookups for subclasses
-//                    if(fields == null) {
+                    // Update Jett 5/31 : we do not do this because we always use the EntityIdentity of the base class
+
+                    // added to also store entity identity lookups for subclasses
+                    //if(fields == null) {
+//                    if(fields.size() == 0) {
 //
 //                        Set<Class<?>> superClazzes = ReflectionUtils.getAllSuperTypes(entity);
 //                        for(Class superClass : superClazzes) {
-//                            if(fields == null) {
+//                            //if(fields == null) {
+//                            if(fields.size() == 0) {
 //                                fields = ReflectionUtils.getFields(superClass, withAnnotation(DomainEntityIdentity.class));
 //                            }
 //                        }

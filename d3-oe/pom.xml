@@ -11,6 +11,7 @@
     </parent>
 
     <artifactId>d3-oe</artifactId>
+    <version>1.0-SNAPSHOT</version>
 
     <properties>
         <commons-dbcp.version>1.2.2</commons-dbcp.version>
