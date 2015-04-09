@@ -10,7 +10,6 @@ import ph.hatch.ddd.objectdb.repository.impl.test.domain.*;
 import ph.hatch.ddd.oe.ObjectMeta;
 import ph.hatch.ddd.oe.ObjectRegistry;
 import ph.hatch.ddd.oe.ObjectRepository;
-import ph.hatch.ddd.repository.impl.GenericDBObjectRepository;
 
 import javax.persistence.EntityManager;
 import javax.persistence.PersistenceContext;
@@ -68,10 +67,6 @@ public class TestObjectDBObjectRepository {
         System.out.println("shite");
     }
 
-    private class queryCriteria() {
-
-
-    }
 
     public Object queryBuilder(Class object, String...params) {
 
