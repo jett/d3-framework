@@ -13,7 +13,6 @@
     <modules>
         <module>d3-core</module>
         <module>d3-oe</module>
-        <module>d3-objectdb</module>
     </modules>
 
 
