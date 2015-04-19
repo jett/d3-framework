@@ -14,10 +14,13 @@ import ph.hatch.ddd.oe.ObjectRegistry;
 import ph.hatch.ddd.oe.ObjectRepository;
 
 import java.util.List;
+import java.util.logging.Logger;
 
 @Component
 @Transactional(propagation = Propagation.REQUIRED, readOnly = false)
 public class HibernateObjectRepository<entityClass> implements ObjectRepository<entityClass> {
+
+    static Logger log = Logger.getLogger(ObjectRegistry.class.getName());
 
     @Autowired(required = true)
     private SessionFactory sessionFactory;
@@ -51,7 +54,7 @@ public class HibernateObjectRepository<entityClass> implements ObjectRepository<
 
                 // eagerly fetch select variables
                 for(String fetchMember: fetchMembers) {
-                    System.out.println("setting " + fetchMember + " to eager!");
+                    log.info("setting " + fetchMember + " to eager!");
                     crit.setFetchMode(fetchMember, FetchMode.JOIN);
                 }
 

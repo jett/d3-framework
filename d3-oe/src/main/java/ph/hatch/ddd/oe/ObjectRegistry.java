@@ -62,7 +62,7 @@ public class ObjectRegistry {
             // get identity fields
 //            try {
 
-                 System.out.println("registering " + entity.getCanonicalName());
+               log.info("registering " + entity.getCanonicalName());
 
                 Set<Field> fields=null;
 
