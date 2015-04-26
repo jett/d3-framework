@@ -1,13 +1,24 @@
 package ph.hatch.ddd.oe;
 
 import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
+import org.reflections.ReflectionUtils;
 import ph.hatch.ddd.domain.annotations.DomainEntity;
+import ph.hatch.ddd.domain.annotations.DomainEntityIdentity;
 
 import java.lang.reflect.Constructor;
+import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.ParameterizedType;
 import java.util.*;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
+/**
+ * Created by jett on 4/26/15.
+ */
 public class ObjectExplorer {
+
+    static final Logger log = Logger.getLogger(ObjectRegistry.class.getName());
 
     ObjectRegistry objectRegistry;
     ObjectRepository objectRepository;
@@ -32,231 +43,173 @@ public class ObjectExplorer {
         this.areNullsIncluded = includeNulls;
     }
 
-    private Object flattenHashMap(Map<String, Object> field) {
-
-        // applicable only to single field Maps that we use for Entity Identity Objects
-        // this assumes that all Entity Identity objects  will only have one field (and they should)
-        if(field.keySet().size() == 1) {
-
-            String key = (String) field.keySet().toArray()[0];
-
-            Object firstField = field.get(key);
-
-            if(firstField instanceof Map) {
-                flattenHashMap((Map) firstField);
-            } else {
-                return firstField;
-            }
-        } else {
-            return field;
-        }
-
-        return field;
+    // this is just for display purposes
+    private static String repeat(String str, int times) {
+        return new String(new char[times]).replace("\0", str);
     }
 
-    private Map flattenFields(Map<String, Object> fatMap) {
+    public Map explore(Object object, Boolean includeNull) {
 
-        for(String key : fatMap.keySet()) {
+        HashSet visited = new HashSet();        // track visited objects in a cycle
 
-            Object keyValue = fatMap.get(key);
+        log.log(Level.FINE, "start expanding");
+        log.log(Level.FINE, "%s\n", object.getClass().getSimpleName());
+        //hierarchy.put(object.getClass().getSimpleName(), expandHierarchy(object, visited, 1));
 
-            if(keyValue instanceof Map) {
-                fatMap.put(key, flattenHashMap((Map) keyValue));
-            }
-
-            if(keyValue instanceof Collection) {
-                //System.out.println(keyValue);
-            }
-        }
-
-        return fatMap;
+        return expandHierarchy(object, visited, 1);
     }
 
-    private Map expandHierarchy(Object object, Map<String, Object> base, Boolean includeMeta, HashSet visited) {
+    private Map expandHierarchy(Object object, HashSet visited, Integer level) {
 
-        ObjectMeta meta = objectRegistry.getMetaForClass(object.getClass());
+        Map hierarchy = new HashMap<>();
 
-        // TODO : deeply nested stuff here, refactor by breaking down
-        for(String key : base.keySet()) {
+        Set<Field> fields=new HashSet<Field>();
 
-            ObjectMeta fieldMeta = meta.getFieldMeta(key);
+        Class classToExpand = object.getClass();
 
-            String classForIdentity = objectRegistry.getClassForEntityIdentityField(fieldMeta.getClassName());
+        // get all the fields for this class (including those belonging to the superclass(es))
+        while (classToExpand != Object.class) {
+            fields.addAll(ReflectionUtils.getFields(classToExpand));
+            classToExpand = classToExpand.getSuperclass();
+        }
 
-            // check if the field is an entity identity, if it is we expand using the entity identity
-            if(classForIdentity != null) {
+        for(Field field : fields) {
 
-                // get the object type of the entity
-                String entityIdentityClassName = fieldMeta.getClassName();
-                String entityClassName = objectRegistry.getClassForEntityIdentityField(entityIdentityClassName);
+            String fieldName = field.getName();
 
-                Boolean hasBeenVisited = visited.contains(entityIdentityClassName);
+            try {
 
-                // prevent circular-referencing children from getting reloaded
-                if(hasBeenVisited) {
-                    continue;
-                }
+                Field targetField = field;
+                targetField.setAccessible(true);
 
-                // only expand for identities that are not for this parent
-                Boolean isInstance = false;
-                try {
-                    isInstance = Class.forName(classForIdentity).isAssignableFrom(object.getClass());
-                } catch(Exception e) {
-                    e.printStackTrace();
-                }
+                Object objectValue = targetField.get(object);
 
-                if(!isInstance) {
+                System.out.printf("%s+- %s : %s\n", repeat("\t", level), targetField.getName(), objectValue);
 
-                    // if we found an entity class, it means that the elements of the collection are entity identities
-                    if(entityClassName != null) {
+                // check if field is the object's entity identity, if it is, store it in our map and carry on
+                if (targetField.isAnnotationPresent(DomainEntityIdentity.class)) {
 
-                        //System.out.println("class for collection entry " + entityClassName);
+                    hierarchy.put(fieldName, objectValue.toString());
 
-                        Collection items;
+                } else if (objectRegistry.getClassForEntityIdentityField(targetField.getType().getCanonicalName()) != null) {
 
-                        // if this is is a collection, get the collection,
-                        // otherwise, just fake a collection so we only have one routine for both
-                        if(fieldMeta.isCollection) {
-                            items = (Collection) base.get(key);
-                        } else {
-                            items = new HashSet();
-                            items.add(base.get(key));
+                    // check if the field has an associated entity
+                    if (objectValue == null) {
+
+                        if(areNullsIncluded) {
+                            hierarchy.put(fieldName, "");
                         }
 
-                        Set newEntries = new HashSet();
+                    } else {
 
-                        // we are sure that what we have are Maps since we JSONed them in
-                        for(Map item : (Collection<Map>) items) {
+                        String otherFieldEntityIdentity = objectRegistry.getClassForEntityIdentityField(targetField.getType().getCanonicalName());
 
-                            //System.out.println(item);
+                        Class<?> cl = Class.forName(targetField.getType().getCanonicalName());
+                        Constructor<?> cons = cl.getConstructor(String.class);
 
-                            // there should only be one entry
-                            if(item != null && item.keySet().size() == 1) {
+                        Object o = cons.newInstance(objectValue.toString());
 
-                                String idValue = (String) item.values().toArray()[0];
-                                //System.out.println(idValue);
+                        Object result = null;
 
-                                try {
+                        String identityField = objectRegistry.getEntityIdentityFieldname(Class.forName(otherFieldEntityIdentity));
+                        result = objectRepository.load((Class<DomainEntity>) Class.forName(otherFieldEntityIdentity), o);
 
-                                    Class<?> cl = Class.forName(entityIdentityClassName);
-                                    Constructor<?> cons = cl.getConstructor(String.class);
-
-                                    Object o = cons.newInstance(idValue);
-
-                                    // TODO: this is terribly inefficient since we have to hit the database for every element
-                                    // of the collection, consider doing an "IN" query
-                                    Object result = null;
-                                    result = objectRepository.load((Class<DomainEntity>) Class.forName(entityClassName), o);
-
-                                    String objectName = Class.forName(entityClassName).getSimpleName();
-
-                                    // only create a new entry if we found a matching record
-                                    if(result != null) {
-
-                                        //System.out.println("OBJECT IS: " + entityClassName + " ID " + idValue);
-
-                                        visited.add(entityIdentityClassName);
-
-                                        Map newEntryMap = gson.fromJson(gson.toJson(result), Map.class);
-                                        newEntryMap = expandHierarchy(result, newEntryMap, includeMeta, visited);
-
-                                        // remove the entity identity after exploding it
-                                        visited.remove(entityIdentityClassName);
-
-                                        Map newEntry = flattenFields(newEntryMap);
-
-                                        Map innerElement = new HashMap();
-                                        innerElement.put(objectName, newEntry);
-
-                                        //newEntries.add(newEntry);
-                                        newEntries.add(innerElement);
-
-                                    }
-
-                                } catch(Exception e) {
-
-                                    e.printStackTrace();
-
-                                }
-                            }
-                        }
-
-                        // if this was a collection, then put the new entries, otherwise,
-                        // put the single entry that we updated
-                        if(fieldMeta.isCollection) {
-                            if(newEntries.size() > 0) {
-                                base.put(key, newEntries);
+                        // if a matching record was found, go dig for it
+                        if (result == null) {
+                            if(areNullsIncluded) {
+                                hierarchy.put(fieldName, "");
                             }
                         } else {
-                            if(newEntries.size() > 0) {
-                                base.put(key, newEntries.toArray()[0]);
-                            }
+                            hierarchy.put(fieldName, expandHierarchy(result, visited, level + 1));
                         }
                     }
+
+
+                } else if (Collection.class.isAssignableFrom(field.getType())) {
+
+                    // if field is a collection
+                    try {
+                        // only get parameterized types
+                        if (field.getGenericType() instanceof ParameterizedType) {
+
+                            ParameterizedType objectListType = (ParameterizedType) field.getGenericType();
+                            Class setClass = (Class<?>) objectListType.getActualTypeArguments()[0];
+
+                            // if the collection is a set of DomainEntityIdentities
+                            if(objectRegistry.getClassForEntityIdentityField(setClass.getCanonicalName()) != null) {
+
+                                Map setMap = new HashMap<>();
+
+                                // loop through items in the set
+                                for(Object identityObject: (Collection) objectValue) {
+
+                                    String otherFieldEntityIdentity = objectRegistry.getClassForEntityIdentityField(setClass.getCanonicalName());
+                                    Object result = objectRepository.load((Class<DomainEntity>) Class.forName(otherFieldEntityIdentity), identityObject);
+
+                                    if (result == null) {
+                                        setMap.put(identityObject, "");
+                                    } else {
+                                        setMap.put(identityObject, expandHierarchy(result, visited, level + 1));
+                                    }
+                                }
+
+                                hierarchy.put(fieldName, setMap);
+
+                            } else {
+
+                                // if the setClass was not an DomainEntityIdentity, then it must be a different
+                                // class
+
+                                Map setMap = new HashMap<>();
+
+                                Integer elementCount = 1;
+
+                                // loop through items in the set
+                                for(Object genericSetObject: (Collection) objectValue) {
+
+                                    setMap.put(elementCount, expandHierarchy(genericSetObject, visited, level + 1));
+                                    elementCount++;
+
+                                }
+
+                                hierarchy.put(fieldName, setMap);
+
+                            }
+                        }
+
+                    } catch (TypeNotPresentException tnpe) {
+
+                        log.log(Level.SEVERE, "field type was not found.");
+                    }
+
+
+                } else {
+
+                    // just a "normal" field, add to our Map and carry on
+                    hierarchy.put(fieldName, objectValue == null ? "" : objectValue.toString());
+
                 }
-            }
-        }
 
-        return flattenFields(base);
-
-    }
-
-
-    private Map buildMap(Object object) {
-
-        Gson gson = new Gson();
-
-        if(object != null) {
-            Map me = gson.fromJson(gson.toJson(object), Map.class);
-            return me;
-        }
-
-        return null;
-
-    }
-
-    public void exploreStructure(Class clazz) {
-
-
-
-
-    }
-
-    public Map explore(Object object, Boolean includeMeta) {
-
-        if(object != null) {
-
-            GsonBuilder builder = new GsonBuilder();
-
-            if(areNullsIncluded) {
-                builder.serializeNulls();
+            } catch(IllegalAccessException iae) {
+                // todo: add exception handling
+                log.log(Level.SEVERE, "Illegal Access Exception");
+            } catch(ClassNotFoundException cnfe ) {
+                // todo: add exception handling
+                log.log(Level.SEVERE, "Class not found Exception");
+            }  catch(NoSuchMethodException nsme) {
+                // todo: add exception handling
+                log.log(Level.SEVERE, "Method not Found Exceptions");
+            } catch(InstantiationException ie) {
+                // todo: add exception handling
+                log.log(Level.SEVERE, "Instantiation Exception");
+            } catch(InvocationTargetException ite) {
+                // todo: add exception handling
+                log.log(Level.SEVERE, "InvocationTarget Exception");
             }
 
-            builder.setDateFormat(dateFormat);
-
-            gson = builder.create();
-
-            HashSet<String> visited = new HashSet();
-
-            // add the current identity class to visited so we don't dig this in the "future"
-            String entityIdentity = objectRegistry.getEntityIdentityFieldname(object.getClass());
-            if(entityIdentity != null) {
-                visited.add(entityIdentity);
-            }
-
-            Map me = gson.fromJson(gson.toJson(object), Map.class);
-            Map expanded = expandHierarchy(object, me, includeMeta, visited);
-
-            return expanded;
         }
 
-        return null;
-    }
-
-    public Map explore(Object object) {
-
-        return explore(object, false);
-
+        return hierarchy;
     }
 
 }

@@ -18,6 +18,7 @@ import javax.persistence.criteria.Root;
 import java.lang.reflect.Field;
 import java.util.List;
 import java.util.Set;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 @Component
@@ -100,7 +101,7 @@ public class JPAObjectRepository<entityClass> implements ObjectRepository<entity
                 criteriaQuery.where(condition);
 
                 for(String fetchMember: fetchMembers) {
-                    log.info("setting " + fetchMember + " to eager!");
+                    log.log(Level.FINE, "setting {0} to eager!", fetchMember);
                     pRoot.fetch(fetchMember);
                 }
 

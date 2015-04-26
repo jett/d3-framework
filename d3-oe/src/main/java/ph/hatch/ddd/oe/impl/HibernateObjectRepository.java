@@ -14,6 +14,7 @@ import ph.hatch.ddd.oe.ObjectRegistry;
 import ph.hatch.ddd.oe.ObjectRepository;
 
 import java.util.List;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 @Component
@@ -54,7 +55,7 @@ public class HibernateObjectRepository<entityClass> implements ObjectRepository<
 
                 // eagerly fetch select variables
                 for(String fetchMember: fetchMembers) {
-                    log.info("setting " + fetchMember + " to eager!");
+                    log.log(Level.FINE, "setting {0} to eager!", fetchMember);
                     crit.setFetchMode(fetchMember, FetchMode.JOIN);
                 }
 

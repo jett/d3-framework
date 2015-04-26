@@ -12,10 +12,10 @@ import java.util.Date;
 public class Employee extends Person {
 
     @Embedded
-    ph.hatch.ddd.oe.test.domain.EmployeeId employeeId;
+    EmployeeId employeeId;
 
     @Embedded
-    ph.hatch.ddd.oe.test.domain.ProvinceCode birthProvinceCode;
+    ProvinceCode birthProvinceCode;
 
     @Column(name="birthday")
     Date birthdate;

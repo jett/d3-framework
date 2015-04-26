@@ -15,7 +15,7 @@ public class Country {
 
     @EmbeddedId
     @DomainEntityIdentity
-    ph.hatch.ddd.oe.test.domain.CountryCode countryCode;
+    CountryCode countryCode;
 
     @Column(name = "NAME")
     String name;

@@ -1,4 +1,4 @@
-package ph.hatch.ddd.oe.test.domain.repository;
+package ph.hatch.ddd.oe.test.repository;
 
 import ph.hatch.ddd.oe.test.domain.Department;
 import ph.hatch.ddd.oe.test.domain.DepartmentId;

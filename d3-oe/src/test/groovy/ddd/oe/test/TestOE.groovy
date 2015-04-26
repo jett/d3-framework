@@ -10,10 +10,17 @@ import org.springframework.test.context.ContextConfiguration
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner
 import org.springframework.transaction.annotation.Transactional
 import ph.hatch.ddd.oe.OESerializers
-import ph.hatch.ddd.oe.ObjectExplorer
 import ph.hatch.ddd.oe.ObjectRegistry
 import ph.hatch.ddd.oe.ObjectRepository
-import ph.hatch.ddd.oe.test.domain.*
+import ph.hatch.ddd.oe.ObjectExplorer
+import ph.hatch.ddd.oe.test.domain.Country
+import ph.hatch.ddd.oe.test.domain.CountryCode
+import ph.hatch.ddd.oe.test.domain.Department
+import ph.hatch.ddd.oe.test.domain.DepartmentId
+import ph.hatch.ddd.oe.test.domain.Employee
+import ph.hatch.ddd.oe.test.domain.PersonId
+import ph.hatch.ddd.oe.test.domain.Province
+import ph.hatch.ddd.oe.test.domain.ProvinceCode
 
 @RunWith(SpringJUnit4ClassRunner.class)
 @ContextConfiguration(value = "classpath:oe/test-context.xml")
@@ -44,6 +51,10 @@ class TestOE {
         department.addPerson(new PersonId("PER-001"))
         department.addPerson(new PersonId("PER-003"))
 
+        // added to test child classes that are elements of a collection
+        department.addManagementRole(new PersonId("PER-001"), "Dummy Role");
+        department.addManagementRole(new PersonId("PER-003"), "Another Role");
+
         objectRepository.persist(department)
 
         result = objectRepository.load(Department.class, new DepartmentId("OPS"))
@@ -63,19 +74,16 @@ class TestOE {
 
         Map mymap = objectExplorer.explore(department, true)
 
-        println mymap.personIds.size()
+//        println mymap.personIds.size()
 
         println gson.toJson(mymap)
 
-        mymap.personIds.each() { employee ->
-            println employee.Person.firstName +  " " + employee.Person.lastName  + " " + employee.Person.birthProvinceCode?.Province?.name
-        }
-
         OESerializers oeSerializers = new OESerializers();
-
         println oeSerializers.maptoxml(mymap, "Department")
 
-
+        mymap.personIds.each() { employee ->
+//            println employee.Employee.firstName +  " " + employee.Employee.lastName  + " " + employee.Employee.birthProvinceCode?.Province?.name
+        }
     }
 
 }
