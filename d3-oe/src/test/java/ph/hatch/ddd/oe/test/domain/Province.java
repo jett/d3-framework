@@ -15,7 +15,7 @@ public class Province {
 
     @EmbeddedId
     @DomainEntityIdentity
-    ph.hatch.ddd.oe.test.domain.ProvinceCode provinceCode;
+    ProvinceCode provinceCode;
 
     @Column(name = "NAME")
     String name;

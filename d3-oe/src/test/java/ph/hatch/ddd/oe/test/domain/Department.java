@@ -6,7 +6,9 @@ import ph.hatch.ddd.domain.annotations.DomainEntityIdentity;
 
 import javax.persistence.*;
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 @Entity
@@ -34,6 +36,17 @@ public class Department {
     @Column(name="PERSON_ID")
     Set<PersonId> personIds;
 
+    @ElementCollection
+    @CollectionTable(
+            name="MANAGEMENT_ROLES",
+            joinColumns=@JoinColumn(name="DEPT_ID")
+    )
+    List<ManagementRole> managementRoles;
+
+    @Embedded
+    @Column(name="BOSS_EMP_ID")
+    PersonId boss;
+
     public Department(){
 
     }
@@ -54,12 +67,26 @@ public class Department {
 
     }
 
+    public void addManagementRole(PersonId employeeId, String role) {
+
+        if(managementRoles == null) {
+            managementRoles = new ArrayList<ManagementRole>();
+        }
+
+        managementRoles.add(new ManagementRole(role, employeeId));
+
+    }
+
     public String getDepartmentName() {
         return departmentName;
     }
 
     public DepartmentId getDepartmentId() {
         return this.departmentId;
+    }
+
+    public void setBoss(PersonId boss) {
+        this.boss = boss;
     }
 
     public Set getEmployees() {

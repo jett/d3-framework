@@ -13,17 +13,15 @@ import ph.hatch.ddd.domain.annotations.DomainEntityIdentity;
 import java.lang.reflect.Field;
 import java.lang.reflect.ParameterizedType;
 import java.net.URL;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import static org.reflections.ReflectionUtils.withAnnotation;
 
 public class ObjectRegistry {
 
-    static Logger log = Logger.getLogger(ObjectRegistry.class.getName());
+    static final Logger log = Logger.getLogger(ObjectRegistry.class.getName());
 
     private BiMap entityStore;          // stores all the Entities and identifiers
     private Map identityStore;          // stores names of the entity identity fields
@@ -62,13 +60,22 @@ public class ObjectRegistry {
             // get identity fields
 //            try {
 
-               log.info("registering " + entity.getCanonicalName());
+               log.log(Level.FINE, "registering {0}", entity.getCanonicalName());
 
-                Set<Field> fields=null;
+                Set<Field> fields=new HashSet<Field>();
 
                 try {
 
-                    fields = ReflectionUtils.getFields(entity, withAnnotation(DomainEntityIdentity.class));
+                    // add all the fields of the @DomainEntity up the hierarchy
+                    // todo: 4/26 i am here
+                    Class classInEntity = entity;
+                    while (classInEntity.isAnnotationPresent(DomainEntity.class)) {
+                        System.out.println(classInEntity.getName());
+                        fields.addAll(ReflectionUtils.getFields(classInEntity, withAnnotation(DomainEntityIdentity.class)));
+                        classInEntity = classInEntity.getSuperclass();
+                    }
+
+                     //fields = ReflectionUtils.getFields(entity, withAnnotation(DomainEntityIdentity.class));
 
                     // TODO : experimental fix
                     // Update Jett 5/31 : we do not do this because we always use the EntityIdentity of the base class
@@ -79,7 +86,7 @@ public class ObjectRegistry {
 //
 //                        Set<Class<?>> superClazzes = ReflectionUtils.getAllSuperTypes(entity);
 //                        for(Class superClass : superClazzes) {
-//                            //if(fields == null) {
+//                            if(fields == null) {
 //                            if(fields.size() == 0) {
 //                                fields = ReflectionUtils.getFields(superClass, withAnnotation(DomainEntityIdentity.class));
 //                            }
@@ -88,7 +95,7 @@ public class ObjectRegistry {
 
                 } catch(NoClassDefFoundError ncdfe) {
 
-                    log.severe("No class definition found for fields of the class!");
+                    log.log(Level.SEVERE, "No class definition found for fields of the class!");
 
                 }
 
@@ -96,7 +103,7 @@ public class ObjectRegistry {
 
                     Field identityField =  (Field) fields.toArray()[0];
 
-                    log.info("adding: " + entity.getCanonicalName() + " : " + identityField.getType().getCanonicalName());
+                    log.log(Level.INFO, "adding: {0} : {1} ", new Object[]{ entity.getCanonicalName() , identityField.getType().getCanonicalName()});
 
                     identityStore.put(entity, identityField.getName());
 
@@ -108,7 +115,7 @@ public class ObjectRegistry {
                         if(entityStore.inverse().containsKey(identityField.getType().getCanonicalName())) {
 
                             // System.out.println("Type " + identityField.getType().getCanonicalName() + " is already the key for another class");
-                            log.warning("Type " + identityField.getType().getCanonicalName() + " is already the key for another class");
+                            log.log(Level.WARNING, "Type {0} for {1} is already the key for another class ({3})", new Object[]{identityField.getType().getCanonicalName(), entity, entityStore.inverse().get(identityField.getType().getCanonicalName())});
 
                         } else {
 
@@ -123,6 +130,7 @@ public class ObjectRegistry {
                 } else {
 
                     // TODO: log error, DomainEntity may only have one identity field
+                    log.log(Level.SEVERE, "DomainEntity {0} may only have one identity field.", entity.getCanonicalName());
 
                 }
 
@@ -159,7 +167,7 @@ public class ObjectRegistry {
                             } catch(TypeNotPresentException tnpe) {
 
                                 System.out.println("field not found");
-                                log.severe("field type was not found. ");
+                                log.log(Level.SEVERE, "field type was not found. ");
                             }
 
                         } else {
