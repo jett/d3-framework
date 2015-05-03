@@ -70,7 +70,6 @@ public class JPAObjectRepository<entityClass> implements ObjectRepository<entity
                 System.out.println(fields.toArray()[0]);
 
                 if(field.getGenericType() == String.class) {
-                    System.out.println("i found it");
                     innerIdentityField = field.getName();
                 }
             }
@@ -139,10 +138,8 @@ public class JPAObjectRepository<entityClass> implements ObjectRepository<entity
             if(fields.size() == 1) {
 
                 Field field = (Field) fields.toArray()[0];
-                System.out.println(fields.toArray()[0]);
 
                 if(field.getGenericType() == String.class) {
-                    System.out.println("i found it");
                     innerIdentityField = field.getName();
                 }
             }

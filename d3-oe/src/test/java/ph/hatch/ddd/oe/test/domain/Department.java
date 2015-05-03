@@ -3,13 +3,12 @@ package ph.hatch.ddd.oe.test.domain;
 import org.hibernate.annotations.Fetch;
 import ph.hatch.ddd.domain.annotations.DomainEntity;
 import ph.hatch.ddd.domain.annotations.DomainEntityIdentity;
+import ph.hatch.ddd.oe.annotations.ExploredMethod;
+import ph.hatch.ddd.oe.annotations.OverrideName;
 
 import javax.persistence.*;
 import java.math.BigDecimal;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 @Entity
 @Table(name = "DEPARTMENT")
@@ -21,7 +20,19 @@ public class Department {
     DepartmentId departmentId;
 
     @Column(name = "NAME")
+    @OverrideName(name = "assignedDepartment")
     String departmentName;
+
+
+    @ExploredMethod
+    PersonId myBoss() {
+        return boss;
+    };
+
+    @ExploredMethod
+    String dateLoaded() {
+        return new Date().toString();
+    }
 
     @Column(name = "BUDGET")
     BigDecimal budget;

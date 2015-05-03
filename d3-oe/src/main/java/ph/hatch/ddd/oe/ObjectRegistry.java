@@ -64,15 +64,22 @@ public class ObjectRegistry {
 
                 Set<Field> fields=new HashSet<Field>();
 
+                Class<?> classInEntity = (Class<?>) entity;
+                Class targetClass = null;
+
                 try {
 
                     // add all the fields of the @DomainEntity up the hierarchy
                     // todo: 4/26 i am here
-                    Class classInEntity = entity;
                     while (classInEntity.isAnnotationPresent(DomainEntity.class)) {
-                        System.out.println(classInEntity.getName());
+
                         fields.addAll(ReflectionUtils.getFields(classInEntity, withAnnotation(DomainEntityIdentity.class)));
-                        classInEntity = classInEntity.getSuperclass();
+
+                        if(!classInEntity.getSuperclass().isAnnotationPresent(DomainEntityIdentity.class)) {
+                            targetClass = classInEntity;
+                        }
+
+                        classInEntity = (Class<?>) classInEntity.getSuperclass();
                     }
 
                      //fields = ReflectionUtils.getFields(entity, withAnnotation(DomainEntityIdentity.class));
@@ -105,7 +112,8 @@ public class ObjectRegistry {
 
                     log.log(Level.INFO, "adding: {0} : {1} ", new Object[]{ entity.getCanonicalName() , identityField.getType().getCanonicalName()});
 
-                    identityStore.put(entity, identityField.getName());
+                    // jett 5/2 : store the oldest ancestor with the @DomainEntity attribute (old was entity.)
+                    identityStore.put(targetClass, identityField.getName());
 
                     //entityStore.put(entity.getCanonicalName(), identityField.getName());
                     // TODO, bug here if type is one of the base types
@@ -119,13 +127,14 @@ public class ObjectRegistry {
 
                         } else {
 
-                            entityStore.put(entity.getCanonicalName(), identityField.getType().getCanonicalName());
+                            // jett 5/2 : store the oldest ancestor with the @DomainEntity attribute (old was entity.)
+                            entityStore.put(targetClass.getCanonicalName(), identityField.getType().getCanonicalName());
                         }
 
 
                     }
 
-                    entityStore1.put(entity.getCanonicalName(), identityField.getType().getCanonicalName());
+                    entityStore1.put(targetClass.getCanonicalName(), identityField.getType().getCanonicalName());
 
                 } else {
 

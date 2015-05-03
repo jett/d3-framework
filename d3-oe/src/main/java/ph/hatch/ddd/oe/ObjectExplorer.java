@@ -4,14 +4,14 @@ import com.google.gson.Gson;
 import org.reflections.ReflectionUtils;
 import ph.hatch.ddd.domain.annotations.DomainEntity;
 import ph.hatch.ddd.domain.annotations.DomainEntityIdentity;
+import ph.hatch.ddd.oe.annotations.ExploredMethod;
 
-import java.lang.reflect.Constructor;
-import java.lang.reflect.Field;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.*;
 import java.util.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import static org.reflections.ReflectionUtils.withAnnotation;
 
 /**
  * Created by jett on 4/26/15.
@@ -64,13 +64,57 @@ public class ObjectExplorer {
         Map hierarchy = new HashMap<>();
 
         Set<Field> fields=new HashSet<Field>();
+        Set<Method> methods = new HashSet<Method>();
 
         Class classToExpand = object.getClass();
 
         // get all the fields for this class (including those belonging to the superclass(es))
         while (classToExpand != Object.class) {
             fields.addAll(ReflectionUtils.getFields(classToExpand));
+            methods.addAll(ReflectionUtils.getAllMethods(classToExpand, withAnnotation(ExploredMethod.class)));
+
             classToExpand = classToExpand.getSuperclass();
+        }
+
+        for(Method method : methods) {
+
+            String methodReturnType = method.getReturnType().getCanonicalName();
+            String entityClassForReturnType = objectRegistry.getClassForEntityIdentityField(methodReturnType);
+
+            String fieldName = method.getName();
+
+            try {
+                method.setAccessible(true);
+                Object methodReturn = method.invoke(object);
+
+                System.out.printf("%s+- %s(m) : %s\n", repeat("\t", level), fieldName, methodReturn);
+
+                Object result = null;
+
+                // if it is not an entity identity, return as is
+                if(entityClassForReturnType == null) {
+
+                    hierarchy.put(fieldName, methodReturn);
+
+                } else {
+
+                    result = objectRepository.load((Class<DomainEntity>) Class.forName(entityClassForReturnType), methodReturn);
+
+                    // if a matching record was found, go dig for it
+                    if (result == null) {
+                        if (areNullsIncluded) {
+                            hierarchy.put(fieldName, "");
+                        }
+                    } else {
+                        hierarchy.put(fieldName, expandHierarchy(result, visited, level + 1));
+                    }
+                }
+
+
+            } catch(InvocationTargetException | IllegalAccessException | ClassNotFoundException e) {
+                log.log(Level.SEVERE, "could not invoke ExploredProperty method");
+            }
+
         }
 
         for(Field field : fields) {
@@ -140,16 +184,19 @@ public class ObjectExplorer {
 
                                 Map setMap = new HashMap<>();
 
-                                // loop through items in the set
-                                for(Object identityObject: (Collection) objectValue) {
+                                if(objectValue != null) {
 
-                                    String otherFieldEntityIdentity = objectRegistry.getClassForEntityIdentityField(setClass.getCanonicalName());
-                                    Object result = objectRepository.load((Class<DomainEntity>) Class.forName(otherFieldEntityIdentity), identityObject);
+                                    // loop through items in the set (if collection is not empty)
+                                    for (Object identityObject : (Collection) objectValue) {
 
-                                    if (result == null) {
-                                        setMap.put(identityObject, "");
-                                    } else {
-                                        setMap.put(identityObject, expandHierarchy(result, visited, level + 1));
+                                        String otherFieldEntityIdentity = objectRegistry.getClassForEntityIdentityField(setClass.getCanonicalName());
+                                        Object result = objectRepository.load((Class<DomainEntity>) Class.forName(otherFieldEntityIdentity), identityObject);
+
+                                        if (result == null) {
+                                            setMap.put(identityObject, "");
+                                        } else {
+                                            setMap.put(identityObject, expandHierarchy(result, visited, level + 1));
+                                        }
                                     }
                                 }
 
